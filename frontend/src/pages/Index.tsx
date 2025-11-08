@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,53 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Plus, Trash2, UtensilsCrossed, Info, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, UtensilsCrossed, Info, CheckCircle, AlertTriangle, XCircle, Brain, Lightbulb, Target } from "lucide-react";
 import { toast } from "sonner";
+import { getClients, analyzeOrderWithAI, type OrderItem, type ClientData, type AnalysisResponse } from "@/lib/api";
 
-interface OrderItem {
-  id: string;
-  producto: string;
-  cantidad: number;
-  precioUnitario: number;
-  descuento: number;
-  subtotal: number;
-}
-
-interface ClientData {
-  nombre: string;
-  historial: string;
-  limiteCredito: number;
-  descuentoMaximo: number;
-  categoria: string;
-  margenMinimo: number;
-}
-
-const CLIENTS: Record<string, ClientData> = {
-  clienteA: {
-    nombre: "Supermercados DelSur",
-    historial: "Cliente Premium - 50 pedidos en el último año",
-    limiteCredito: 50000000,
-    descuentoMaximo: 20,
-    categoria: "Premium",
-    margenMinimo: 12,
-  },
-  clienteB: {
-    nombre: "Restaurantes Gourmet SAS",
-    historial: "Cliente Regular - 25 pedidos en el último año",
-    limiteCredito: 30000000,
-    descuentoMaximo: 15,
-    categoria: "Regular",
-    margenMinimo: 15,
-  },
-  clienteC: {
-    nombre: "Distribuidora NorteCol",
-    historial: "Cliente Nuevo - Primer pedido",
-    limiteCredito: 10000000,
-    descuentoMaximo: 10,
-    categoria: "Nuevo",
-    margenMinimo: 18,
-  },
-};
+// Los tipos ahora se importan desde el archivo de API
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("es-CO", {
@@ -69,7 +27,9 @@ const Index = () => {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [conditions, setConditions] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
+  const [clients, setClients] = useState<ClientData[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
 
   const addItem = () => {
     const newItem: OrderItem = {
@@ -106,9 +66,26 @@ const Index = () => {
     );
   };
 
+  // Cargar clientes al montar el componente
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const response = await getClients();
+        setClients(response.data);
+      } catch (error) {
+        console.error('Error cargando clientes:', error);
+        toast.error('Error cargando clientes');
+      } finally {
+        setIsLoadingClients(false);
+      }
+    };
+
+    loadClients();
+  }, []);
+
   const totalPedido = items.reduce((sum, item) => sum + item.subtotal, 0);
 
-  const analyzeOrder = () => {
+  const analyzeOrder = async () => {
     if (!selectedClient) {
       toast.error("Por favor selecciona un cliente");
       return;
@@ -124,127 +101,22 @@ const Index = () => {
 
     setIsAnalyzing(true);
     
-    setTimeout(() => {
-      const clientData = CLIENTS[selectedClient];
-      
-      // Cálculos
-      const itemsAnalysis = items.map((item) => {
-        const costo = item.precioUnitario * 0.6;
-        const precioConDescuento = item.precioUnitario * (1 - item.descuento / 100);
-        const margen = ((precioConDescuento - costo) / precioConDescuento) * 100;
-        return { ...item, margen, costo };
-      });
-
-      const margenPromedio =
-        itemsAnalysis.reduce((sum, item) => sum + item.margen, 0) / itemsAnalysis.length;
-      
-      const descuentoPromedio =
-        items.reduce((sum, item) => sum + item.descuento, 0) / items.length;
-
-      // Validaciones
-      const riesgos: string[] = [];
-      let decision: "APROBAR" | "AJUSTAR" | "RECHAZAR" = "APROBAR";
-      let nivelRiesgo: "BAJO" | "MEDIO" | "ALTO" = "BAJO";
-      let motivoPrincipal = "";
-      let justificacion: string[] = [];
-
-      // Validar descuentos
-      const descuentoExceso = descuentoPromedio - clientData.descuentoMaximo;
-      if (descuentoExceso > 5) {
-        riesgos.push("Descuentos excesivos aplicados");
-        decision = "RECHAZAR";
-        motivoPrincipal = "Los descuentos aplicados exceden significativamente el límite permitido";
-      } else if (descuentoExceso > 0 && descuentoExceso <= 5) {
-        riesgos.push("Descuentos ligeramente por encima del límite");
-        if (decision === "APROBAR") decision = "AJUSTAR";
-      }
-
-      // Validar margen
-      if (margenPromedio < clientData.margenMinimo - 2) {
-        riesgos.push("Margen de ganancia muy bajo");
-        decision = "RECHAZAR";
-        if (!motivoPrincipal) motivoPrincipal = "El margen de ganancia está por debajo del mínimo aceptable";
-      } else if (margenPromedio < clientData.margenMinimo) {
-        riesgos.push("Margen de ganancia cercano al límite");
-        if (decision === "APROBAR") decision = "AJUSTAR";
-      }
-
-      // Validar límite de crédito
-      const excesoCreditoFactor = totalPedido / clientData.limiteCredito;
-      if (excesoCreditoFactor > 1.1) {
-        riesgos.push("Valor del pedido excede significativamente el límite de crédito");
-        decision = "RECHAZAR";
-        if (!motivoPrincipal) motivoPrincipal = "El valor total supera el límite de crédito disponible";
-      } else if (excesoCreditoFactor > 1) {
-        riesgos.push("Valor del pedido cercano al límite de crédito");
-        if (decision === "APROBAR") decision = "AJUSTAR";
-      }
-
-      // Nivel de riesgo
-      if (riesgos.length >= 3 || decision === "RECHAZAR") {
-        nivelRiesgo = "ALTO";
-      } else if (riesgos.length >= 1 || decision === "AJUSTAR") {
-        nivelRiesgo = "MEDIO";
-      }
-
-      // Justificación
-      if (decision === "APROBAR") {
-        motivoPrincipal = "El pedido cumple con todas las políticas comerciales establecidas";
-        justificacion = [
-          `✓ Descuento promedio (${descuentoPromedio.toFixed(1)}%) está dentro del límite permitido (${clientData.descuentoMaximo}%)`,
-          `✓ Margen de ganancia promedio (${margenPromedio.toFixed(1)}%) supera el mínimo requerido (${clientData.margenMinimo}%)`,
-          `✓ Valor total (${formatCurrency(totalPedido)}) está dentro del límite de crédito (${formatCurrency(clientData.limiteCredito)})`,
-          `✓ Cliente ${clientData.categoria} con buen historial de pagos`,
-        ];
-      } else if (decision === "AJUSTAR") {
-        if (!motivoPrincipal) motivoPrincipal = "El pedido requiere ajustes menores para cumplir políticas";
-        justificacion = [
-          descuentoExceso > 0
-            ? `⚠ Descuento promedio (${descuentoPromedio.toFixed(1)}%) excede el límite en ${descuentoExceso.toFixed(1)}%`
-            : `✓ Descuento promedio (${descuentoPromedio.toFixed(1)}%) aceptable`,
-          margenPromedio < clientData.margenMinimo
-            ? `⚠ Margen de ganancia (${margenPromedio.toFixed(1)}%) ligeramente por debajo del mínimo (${clientData.margenMinimo}%)`
-            : `✓ Margen de ganancia (${margenPromedio.toFixed(1)}%) aceptable`,
-          excesoCreditoFactor > 1
-            ? `⚠ Valor del pedido cercano al límite de crédito`
-            : `✓ Valor del pedido dentro del límite de crédito`,
-          "Se recomienda negociar términos o reducir descuentos",
-        ];
-      } else {
-        justificacion = [
-          descuentoExceso > 5
-            ? `✗ Descuento promedio (${descuentoPromedio.toFixed(1)}%) excede el límite en ${descuentoExceso.toFixed(1)}%`
-            : `✓ Descuentos dentro del rango`,
-          margenPromedio < clientData.margenMinimo - 2
-            ? `✗ Margen de ganancia (${margenPromedio.toFixed(1)}%) significativamente por debajo del mínimo (${clientData.margenMinimo}%)`
-            : margenPromedio < clientData.margenMinimo
-            ? `⚠ Margen de ganancia bajo`
-            : `✓ Margen aceptable`,
-          excesoCreditoFactor > 1.1
-            ? `✗ Valor del pedido (${formatCurrency(totalPedido)}) excede el límite de crédito en ${((excesoCreditoFactor - 1) * 100).toFixed(0)}%`
-            : `✓ Dentro del límite de crédito`,
-          "No se recomienda procesar este pedido sin modificaciones sustanciales",
-        ];
-      }
-
-      const result = {
-        clientData,
-        itemsAnalysis,
-        margenPromedio,
-        descuentoPromedio,
-        descuentoExceso: Math.max(0, descuentoExceso),
-        totalPedido,
-        riesgos,
-        decision,
-        nivelRiesgo,
-        motivoPrincipal,
-        justificacion,
+    try {
+      const orderData = {
+        clienteId: selectedClient,
+        items,
+        condiciones: conditions || undefined
       };
 
+      const result = await analyzeOrderWithAI(orderData);
       setAnalysisResult(result);
+      toast.success("Análisis con IA completado");
+    } catch (error) {
+      console.error('Error en análisis:', error);
+      toast.error('Error en el análisis. Intenta de nuevo.');
+    } finally {
       setIsAnalyzing(false);
-      toast.success("Análisis completado");
-    }, 2000);
+    }
   };
 
   const resetForm = () => {
@@ -321,14 +193,16 @@ const Index = () => {
               <CardContent>
                 <div className="space-y-2">
                   <Label htmlFor="client">Cliente</Label>
-                  <Select value={selectedClient} onValueChange={setSelectedClient}>
+                  <Select value={selectedClient} onValueChange={setSelectedClient} disabled={isLoadingClients}>
                     <SelectTrigger id="client" className="bg-background">
-                      <SelectValue placeholder="Seleccionar Cliente" />
+                      <SelectValue placeholder={isLoadingClients ? "Cargando clientes..." : "Seleccionar Cliente"} />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="clienteA">Cliente Institucional A (Supermercados DelSur)</SelectItem>
-                      <SelectItem value="clienteB">Cliente Institucional B (Restaurantes Gourmet SAS)</SelectItem>
-                      <SelectItem value="clienteC">Cliente Institucional C (Distribuidora NorteCol)</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.nombre} ({client.categoria})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -484,7 +358,7 @@ const Index = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Valor Total</p>
-                    <p className="text-lg font-bold">{formatCurrency(analysisResult.totalPedido)}</p>
+                    <p className="text-lg font-bold">{formatCurrency(analysisResult.rulesAnalysis.totalPedido)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Condiciones</p>
@@ -544,25 +418,25 @@ const Index = () => {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <p className="text-lg font-bold">{analysisResult.margenPromedio.toFixed(1)}%</p>
+                    <p className="text-lg font-bold">{analysisResult.rulesAnalysis.margenPromedio.toFixed(1)}%</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Descuentos Totales Aplicados</p>
-                    <p className="text-lg font-bold">{analysisResult.descuentoPromedio.toFixed(1)}%</p>
+                    <p className="text-lg font-bold">{analysisResult.rulesAnalysis.descuentoPromedio.toFixed(1)}%</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Validación de Descuentos:</p>
-                  {analysisResult.descuentoExceso === 0 ? (
+                  {analysisResult.rulesAnalysis.descuentoExceso === 0 ? (
                     <div className="flex items-center gap-2 text-success">
                       <CheckCircle className="h-5 w-5" />
                       <p>Descuentos dentro del límite permitido</p>
                     </div>
-                  ) : analysisResult.descuentoExceso <= 5 ? (
+                  ) : analysisResult.rulesAnalysis.descuentoExceso <= 5 ? (
                     <div className="flex items-center gap-2 text-warning">
                       <AlertTriangle className="h-5 w-5" />
-                      <p>Descuentos exceden el límite en {analysisResult.descuentoExceso.toFixed(1)}%</p>
+                      <p>Descuentos exceden el límite en {analysisResult.rulesAnalysis.descuentoExceso.toFixed(1)}%</p>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-danger">
@@ -572,11 +446,11 @@ const Index = () => {
                   )}
                 </div>
 
-                {analysisResult.riesgos.length > 0 && (
+                {analysisResult.rulesAnalysis.riesgos.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Riesgos Identificados:</p>
                     <ul className="space-y-1">
-                      {analysisResult.riesgos.map((riesgo: string, index: number) => (
+                      {analysisResult.rulesAnalysis.riesgos.map((riesgo: string, index: number) => (
                         <li key={index} className="flex items-start gap-2 text-sm">
                           <span className="text-danger">•</span>
                           <span>{riesgo}</span>
@@ -588,34 +462,92 @@ const Index = () => {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-blue-500" />
+                  Análisis Inteligente con IA
+                </CardTitle>
+                <CardDescription>Insights contextuales generados por ChatGPT</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-yellow-500" />
+                    Insights Contextuales
+                  </h4>
+                  <ul className="space-y-1">
+                    {analysisResult.aiAnalysis.contextualInsights.map((insight, index) => (
+                      <li key={index} className="text-sm flex items-start gap-2">
+                        <span className="text-blue-500">💡</span>
+                        <span>{insight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-2">Evaluación de Riesgos</h4>
+                  <p className="text-sm text-muted-foreground">{analysisResult.aiAnalysis.riskAssessment}</p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-green-500" />
+                    Sugerencias de Negociación
+                  </h4>
+                  <ul className="space-y-1">
+                    {analysisResult.aiAnalysis.negotiationSuggestions.map((suggestion, index) => (
+                      <li key={index} className="text-sm flex items-start gap-2">
+                        <span className="text-green-500">🤝</span>
+                        <span>{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-2">Recomendación de IA</h4>
+                  <p className="text-sm">{analysisResult.aiAnalysis.finalRecommendation}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline">
+                      IA: {analysisResult.aiAnalysis.decision}
+                    </Badge>
+                    <Badge variant="outline">
+                      Confianza: {analysisResult.aiAnalysis.confidence}%
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-2">
               <CardHeader>
-                <CardTitle>Recomendación Estructurada</CardTitle>
+                <CardTitle>Decisión Final Combinada</CardTitle>
+                <CardDescription>Análisis híbrido: Reglas de negocio + Inteligencia artificial</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-center gap-4 py-4">
-                  <Badge className={`${getDecisionColor(analysisResult.decision)} px-6 py-3 text-lg font-bold`}>
-                    <span className="mr-2">{getDecisionIcon(analysisResult.decision)}</span>
-                    {analysisResult.decision}
+                  <Badge className={`${getDecisionColor(analysisResult.finalDecision.decision)} px-6 py-3 text-lg font-bold`}>
+                    <span className="mr-2">{getDecisionIcon(analysisResult.finalDecision.decision)}</span>
+                    {analysisResult.finalDecision.decision}
+                  </Badge>
+                  <Badge variant="outline" className="px-4 py-2">
+                    Confianza: {analysisResult.finalDecision.confidence}%
                   </Badge>
                 </div>
 
                 <div>
-                  <p className="text-sm text-muted-foreground">Motivo Principal</p>
-                  <p className="text-lg font-medium">{analysisResult.motivoPrincipal}</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-muted-foreground">Nivel de Riesgo:</p>
-                  <Badge className={getRiskColor(analysisResult.nivelRiesgo)}>
-                    {analysisResult.nivelRiesgo}
-                  </Badge>
+                  <p className="text-sm text-muted-foreground">Razonamiento</p>
+                  <div className="mt-2 p-3 bg-muted rounded-lg">
+                    <pre className="text-sm whitespace-pre-wrap font-sans">{analysisResult.finalDecision.reasoning}</pre>
+                  </div>
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium mb-2">Justificación Detallada:</p>
+                  <p className="text-sm font-medium mb-2">Acciones Recomendadas:</p>
                   <ul className="space-y-2">
-                    {analysisResult.justificacion.map((item: string, index: number) => (
+                    {analysisResult.finalDecision.actionItems.map((item: string, index: number) => (
                       <li key={index} className="flex items-start gap-2 text-sm">
                         <span>•</span>
                         <span>{item}</span>
@@ -625,8 +557,25 @@ const Index = () => {
                 </div>
 
                 <div className="border-t pt-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Análisis de Reglas:</p>
+                      <Badge className={getDecisionColor(analysisResult.rulesAnalysis.decision)}>
+                        {analysisResult.rulesAnalysis.decision}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Análisis de IA:</p>
+                      <Badge className={getDecisionColor(analysisResult.aiAnalysis.decision)}>
+                        {analysisResult.aiAnalysis.decision}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
                   <p className="text-sm text-muted-foreground italic">
-                    La decisión final queda a cargo del asesor comercial
+                    La decisión final combina análisis cuantitativo y contextual para una recomendación más robusta
                   </p>
                 </div>
               </CardContent>
