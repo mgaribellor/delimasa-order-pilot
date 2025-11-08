@@ -1,0 +1,265 @@
+@startuml
+title Proceso de Registro y Seguimiento de Pedidos - DeliMasa
+
+skinparam sequenceMessageAlign center
+skinparam BoxPadding 10
+
+actor "Cliente\nInstitucional" as Cliente
+participant "Atención al Cliente\n(Call Center)" as AtencionCliente
+participant "Vendedor/\nRepresentante" as Vendedor
+participant "Sistema de\nRegistro de Pedidos" as SistemaPedidos
+participant "Sistema de\nValidación de Crédito" as SistemaCredito
+participant "Sistema de\nInventario" as SistemaInventario
+participant "Sistema de\nBodega" as SistemaBodega
+participant "Sistema de\nDespacho/Logística" as SistemaDespacho
+participant "Sistema de\nFacturación Electrónica" as SistemaFacturacion
+
+== Contacto Inicial y Captura de Información ==
+
+Cliente -> AtencionCliente: Contacto inicial\n(Teléfono/Email/WhatsApp/Portal Web)
+activate AtencionCliente
+
+note right of AtencionCliente
+  Atención al Cliente actúa como 
+  punto de contacto único con el cliente,
+  coordinando con todos los sistemas internos
+end note
+
+AtencionCliente -> AtencionCliente: Capturar información\ndel pedido inicial
+note right: Datos: productos, cantidades,\nfecha de entrega deseada
+
+== Consulta de Disponibilidad ==
+
+AtencionCliente -> SistemaInventario: Consultar disponibilidad\nde productos
+activate SistemaInventario
+SistemaInventario --> AtencionCliente: Lista de productos disponibles\n(stock, precios)
+deactivate SistemaInventario
+
+alt Productos disponibles
+    AtencionCliente -> Cliente: Confirmar disponibilidad\ny precio
+    
+    alt Cliente requiere condiciones especiales (descuentos, plazos, volumen)
+        AtencionCliente -> Vendedor: Escalar pedido\n(condiciones especiales)
+        activate Vendedor
+        
+        Vendedor -> Cliente: Negociar condiciones\nespeciales
+        Cliente --> Vendedor: Aceptar condiciones
+        
+        note right of Vendedor
+          El vendedor gestiona:
+          - Descuentos especiales
+          - Plazos de pago extendidos
+          - Condiciones de entrega
+        end note
+        
+    else Pedido estándar
+        note right of AtencionCliente
+          Continúa con proceso normal
+          sin escalar al vendedor
+        end note
+    end
+    
+else Productos no disponibles
+    AtencionCliente -> Cliente: Notificar productos\nno disponibles
+    AtencionCliente -> Cliente: Ofrecer alternativas\no fecha estimada
+    
+    alt Cliente acepta alternativas
+        AtencionCliente -> AtencionCliente: Ajustar pedido
+    else Cliente cancela
+        AtencionCliente -> Cliente: Confirmar cancelación
+        note right: Proceso terminado
+    end
+end
+
+== Registro del Pedido ==
+
+alt Pedido con condiciones especiales
+    Vendedor -> SistemaPedidos: Registrar pedido\n(con condiciones negociadas)
+    activate SistemaPedidos
+    deactivate Vendedor
+else Pedido estándar
+    AtencionCliente -> SistemaPedidos: Registrar pedido\n(condiciones estándar)
+    activate SistemaPedidos
+end
+
+note right of SistemaPedidos
+  Sistema genera número 
+  de pedido único
+end note
+
+== Validaciones Automáticas ==
+
+SistemaPedidos -> SistemaInventario: Validar disponibilidad final\nde productos
+activate SistemaInventario
+SistemaInventario -> SistemaInventario: Reservar productos
+
+alt Inventario suficiente
+    SistemaInventario --> SistemaPedidos: Productos reservados
+    deactivate SistemaInventario
+    
+    SistemaPedidos -> SistemaCredito: Validar crédito del cliente\n(monto del pedido)
+    activate SistemaCredito
+    
+    SistemaCredito -> SistemaCredito: Verificar:\n- Línea de crédito\n- Historial de pagos\n- Facturas pendientes
+    
+    alt Crédito aprobado
+        SistemaCredito --> SistemaPedidos: Crédito aprobado
+        deactivate SistemaCredito
+        
+        SistemaPedidos -> SistemaPedidos: Generar Orden de Compra (OC)
+        note right: OC incluye:\n- Número de orden\n- Productos y cantidades\n- Precios\n- Condiciones de pago\n- Fecha de entrega
+        
+        == Confirmación al Cliente ==
+        
+        SistemaPedidos -> AtencionCliente: Notificar confirmación de pedido\n(Número de OC)
+        
+        AtencionCliente -> Cliente: Confirmar pedido\n(Número de OC, fecha estimada)\npor mismo canal de contacto
+        note right of Cliente: Cliente recibe:\n- Número de OC\n- Detalle del pedido\n- Fecha estimada de entrega
+        
+        == Preparación y Despacho ==
+        
+        SistemaPedidos ->> SistemaBodega: Notificar para preparar pedido\n(asíncrono)
+        activate SistemaBodega
+        
+        SistemaBodega -> SistemaBodega: Preparar pedido:\n- Picking\n- Empaque\n- Etiquetado
+        
+        SistemaBodega -> SistemaPedidos: Confirmar preparación\n(pedido listo)
+        deactivate SistemaBodega
+        
+        SistemaPedidos -> SistemaDespacho: Asignar logística\n(dirección, peso, volumen)
+        activate SistemaDespacho
+        
+        SistemaDespacho -> SistemaDespacho: Asignar vehículo\ny planificar ruta
+        
+        SistemaDespacho -> SistemaBodega: Confirmar asignación\nde despacho
+        activate SistemaBodega
+        
+        SistemaBodega -> SistemaBodega: Cargar mercancía
+        
+        SistemaBodega -> SistemaDespacho: Confirmar carga\ny salida
+        deactivate SistemaBodega
+        
+        SistemaDespacho -> SistemaDespacho: Realizar despacho
+        
+        alt Despacho exitoso
+            SistemaDespacho -> SistemaPedidos: Confirmar entrega exitosa
+            deactivate SistemaDespacho
+            
+            == Facturación ==
+            
+            SistemaPedidos -> SistemaFacturacion: Generar factura electrónica
+            activate SistemaFacturacion
+            
+            SistemaFacturacion -> SistemaFacturacion: Crear factura electrónica\n(DIAN)
+            
+            note right of SistemaFacturacion
+              Cumplimiento normativo:
+              - Factura electrónica DIAN
+              - XML firmado digitalmente
+            end note
+            
+            SistemaFacturacion --> SistemaPedidos: Factura generada\n(PDF y XML)
+            deactivate SistemaFacturacion
+            
+            SistemaPedidos -> AtencionCliente: Notificar factura\ny tracking disponibles
+            
+            AtencionCliente -> Cliente: Enviar:\n- Factura electrónica\n- Tracking de entrega\n- Confirmación de recepción
+            
+        else Incidencia en despacho
+            SistemaDespacho -> SistemaPedidos: Reportar incidencia\n(producto dañado, dirección incorrecta)
+            deactivate SistemaDespacho
+            
+            SistemaPedidos -> AtencionCliente: Notificar incidencia
+            
+            AtencionCliente -> Cliente: Informar incidencia\ny solicitar instrucciones
+            
+            Cliente -> AtencionCliente: Indicar acción\n(reenvío, devolución, reclamo)
+            
+            alt Solicitar reenvío
+                AtencionCliente -> SistemaPedidos: Registrar solicitud\nde reenvío
+                SistemaPedidos -> SistemaDespacho: Programar nuevo despacho
+                activate SistemaDespacho
+                note right: Volver a proceso\nde despacho
+                deactivate SistemaDespacho
+                
+            else Solicitar devolución/reclamo
+                AtencionCliente -> SistemaPedidos: Registrar devolución/reclamo
+                SistemaPedidos -> SistemaInventario: Ajustar inventario\n(si aplica)
+                activate SistemaInventario
+                deactivate SistemaInventario
+                
+                SistemaPedidos -> SistemaCredito: Ajustar crédito\n(nota crédito)
+                activate SistemaCredito
+                deactivate SistemaCredito
+                
+                AtencionCliente -> Cliente: Confirmar gestión\nde devolución/reclamo
+            end
+        end
+        
+        deactivate SistemaPedidos
+        
+    else Crédito rechazado
+        SistemaCredito --> SistemaPedidos: Crédito rechazado\n(motivo)
+        deactivate SistemaCredito
+        
+        SistemaPedidos -> SistemaInventario: Liberar productos reservados
+        activate SistemaInventario
+        deactivate SistemaInventario
+        
+        SistemaPedidos -> AtencionCliente: Notificar rechazo de crédito
+        deactivate SistemaPedidos
+        
+        AtencionCliente -> Cliente: Informar rechazo\ny opciones alternativas\n(pago anticipado, ajustar monto)
+        
+        alt Cliente acepta alternativas
+            note right: Reiniciar proceso\ncon nuevas condiciones
+        else Cliente cancela
+            AtencionCliente -> Cliente: Confirmar cancelación
+            note right: Proceso terminado
+        end
+    end
+    
+else Inventario insuficiente
+    SistemaInventario --> SistemaPedidos: Inventario insuficiente
+    deactivate SistemaInventario
+    
+    SistemaPedidos -> AtencionCliente: Notificar falta de inventario
+    deactivate SistemaPedidos
+    
+    AtencionCliente -> Cliente: Informar falta de stock\ny fecha estimada
+    
+    alt Cliente espera reabastecimiento
+        AtencionCliente -> SistemaPedidos: Registrar pedido pendiente
+        note right: Pedido queda en espera\nhasta reabastecimiento
+    else Cliente cancela
+        AtencionCliente -> Cliente: Confirmar cancelación
+        note right: Proceso terminado
+    end
+end
+
+== Seguimiento del Pedido ==
+
+loop Consultas de seguimiento del cliente
+    Cliente -> AtencionCliente: Consultar estado del pedido
+    activate AtencionCliente
+    
+    AtencionCliente -> SistemaPedidos: Consultar estado actual
+    activate SistemaPedidos
+    
+    SistemaPedidos -> SistemaPedidos: Obtener estado:\n- En preparación\n- En tránsito\n- Entregado
+    
+    SistemaPedidos --> AtencionCliente: Estado y tracking
+    deactivate SistemaPedidos
+    
+    AtencionCliente -> Cliente: Informar estado detallado\ny ubicación actual
+    deactivate AtencionCliente
+end
+
+note over Cliente, SistemaFacturacion
+  El proceso completo puede tomar de 1 a 5 días
+  dependiendo de la ubicación y disponibilidad.
+  Atención al Cliente es el punto de contacto
+  durante todo el ciclo de vida del pedido.
+end note
+
+@enduml

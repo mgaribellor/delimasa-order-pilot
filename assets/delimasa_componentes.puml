@@ -1,0 +1,323 @@
+@startuml
+title Arquitectura del Sistema de Gestión de Pedidos - DeliMasa
+
+skinparam componentStyle rectangle
+skinparam {
+    BackgroundColor white
+    ArrowColor #424242
+    BorderColor #424242
+}
+
+' ============ CANALES DE COMUNICACIÓN ============
+actor "Cliente\nInstitucional" as Cliente
+interface "Teléfono" as ITelefono
+interface "Email" as IEmail
+interface "WhatsApp" as IWhatsApp
+interface "Portal Web" as IPortalWeb
+interface "Chat" as IChat
+interface "App Móvil" as IApp
+
+' ============ CAPA DE PRESENTACIÓN ============
+package "Capa de Presentación" #E3F2FD {
+    [API Gateway] as APIGateway
+    note right of APIGateway
+        - Autenticación
+        - Rate limiting
+        - Enrutamiento
+    end note
+}
+
+' ============ MÓDULOS PRINCIPALES ============
+package "Módulo de Atención al Cliente" #E8F5E9 {
+    [Interfaz Multicanal] as InterfazMulticanal
+    [Gestión de Consultas] as GestionConsultas
+    [Seguimiento de Casos] as SeguimientoCasos
+    [Escalamiento a Vendedores] as Escalamiento
+    [Historial de Interacciones] as HistorialInteracciones
+    
+    interface "API Atención" as APIAtencion
+    
+    note bottom of InterfazMulticanal
+        - Gestor de Canales
+        - Cola de Atención
+        - Distribución Automática
+    end note
+}
+
+package "Módulo de Gestión de Pedidos" #E8F5E9 {
+    [Captura de Pedidos] as CapturaPedidos
+    [Motor de Validación] as MotorValidacion
+    [Gestión de Estado] as EstadoPedidos
+    [Gestión de Cambios] as GestionCambios
+    
+    interface "API Pedidos" as APIPedidos
+    
+    note bottom of MotorValidacion
+        - Validador de Productos
+        - Validador de Crédito
+        - Validador de Reglas
+    end note
+}
+
+package "Módulo de Gestión de Clientes" #E8F5E9 {
+    [Perfil de Cliente] as PerfilCliente
+    [Historial de Pedidos] as HistorialPedidos
+    [Motor de Crédito] as MotorCredito
+    [Segmentación] as Segmentacion
+    
+    interface "API Clientes" as APIClientes
+    
+    note bottom of MotorCredito
+        - Línea de Crédito
+        - Evaluación de Riesgo
+        - Límites y Plazos
+    end note
+}
+
+package "Módulo de Inventario" #E8F5E9 {
+    [Consulta Tiempo Real] as ConsultaInventario
+    [Reserva de Productos] as ReservaProductos
+    [Control de Stock] as ControlStock
+    [Alertas de Inventario] as AlertasInventario
+    
+    interface "API Inventario" as APIInventario
+    
+    note bottom of ControlStock
+        - Niveles de Inventario
+        - Stock Mínimo/Máximo
+        - Rotación de Productos
+    end note
+}
+
+package "Módulo de Bodega" #E8F5E9 {
+    [Gestión de Picking] as GestionPicking
+    [Preparación de Pedidos] as PreparacionPedidos
+    [Control de Calidad] as ControlCalidad
+    [Confirmación de Despacho] as ConfirmacionDespacho
+    
+    interface "API Bodega" as APIBodega
+    
+    note bottom of GestionPicking
+        - Generación de Listas
+        - Optimización de Rutas
+        - Asignación de Personal
+    end note
+}
+
+package "Módulo de Logística" #E8F5E9 {
+    [Planificador de Rutas] as PlanificadorRutas
+    [Tracking Tiempo Real] as TrackingTiempoReal
+    [Gestión de Transportistas] as GestionTransportistas
+    [Gestión de Incidencias] as GestionIncidencias
+    
+    interface "API Logística" as APILogistica
+    
+    note bottom of TrackingTiempoReal
+        - Geolocalización
+        - Actualizaciones de Estado
+        - ETA Dinámico
+    end note
+}
+
+package "Módulo de Facturación" #E8F5E9 {
+    [Generador de Facturas] as GeneradorFacturas
+    [Integración DIAN] as IntegracionDIAN
+    [Reportes Contables] as ReportesContables
+    [Notas Contables] as NotasContables
+    
+    interface "API Facturación" as APIFacturacion
+    
+    note bottom of IntegracionDIAN
+        - Firma Digital
+        - Envío a DIAN
+        - Validación XML
+    end note
+}
+
+package "Módulo de Notificaciones" #E8F5E9 {
+    [Motor de Notificaciones] as MotorNotificaciones
+    [Email Transaccional] as EmailTransaccional
+    [SMS] as SMS
+    [WhatsApp Business] as WhatsAppBusiness
+    [Push Notifications] as PushNotifications
+    [Gestión de Preferencias] as GestionPreferencias
+    
+    interface "API Notificaciones" as APINotificaciones
+}
+
+package "Módulo de Reportes y Analytics" #E8F5E9 {
+    [Dashboard Operativo] as DashboardOperativo
+    [Reportes de Ventas] as ReportesVentas
+    [KPIs Operativos] as KPIsOperativos
+    [Análisis de Incidencias] as AnalisisIncidencias
+    
+    interface "API Analytics" as APIAnalytics
+}
+
+' ============ CAPA DE DATOS ============
+package "Capa de Datos" #E1F5FE {
+    database "PostgreSQL\n(Transaccional)" as PostgreSQL #BBDEFB {
+    }
+    
+    database "MongoDB\n(Logs y Eventos)" as MongoDB #BBDEFB {
+    }
+    
+    database "Redis\n(Caché)" as Redis #BBDEFB {
+    }
+}
+
+' ============ SERVICIOS EXTERNOS ============
+package "Servicios Externos" #FFF9C4 {
+    component [DIAN\nFacturación Electrónica] as ServicioDIAN #FFE082
+    component [Pasarelas de Pago] as PasarelasPago #FFE082
+    component [Proveedores SMS/Email] as ProveedoresMensajeria #FFE082
+    component [Servicios de Courier] as ServiciosCourier #FFE082
+}
+
+' ============ CONEXIONES - CLIENTE A CANALES ============
+Cliente --> ITelefono
+Cliente --> IEmail
+Cliente --> IWhatsApp
+Cliente --> IPortalWeb
+Cliente --> IChat
+Cliente --> IApp
+
+' ============ CONEXIONES - CANALES A API GATEWAY ============
+ITelefono --> APIGateway
+IEmail --> APIGateway
+IWhatsApp --> APIGateway
+IPortalWeb --> APIGateway
+IChat --> APIGateway
+IApp --> APIGateway
+
+' ============ CONEXIONES - API GATEWAY A MÓDULOS ============
+APIGateway --> APIAtencion : REST/HTTP
+APIGateway --> APIPedidos : REST/HTTP
+APIGateway --> APIClientes : REST/HTTP
+APIGateway --> APIInventario : REST/HTTP
+APIGateway --> APILogistica : REST/HTTP
+APIGateway --> APIAnalytics : REST/HTTP
+
+' ============ CONEXIONES - ATENCIÓN AL CLIENTE (HUB CENTRAL) ============
+APIAtencion --> InterfazMulticanal
+InterfazMulticanal --> GestionConsultas
+GestionConsultas --> SeguimientoCasos
+SeguimientoCasos --> Escalamiento
+GestionConsultas --> HistorialInteracciones
+
+APIAtencion ..> APIPedidos : "Crear/Consultar\nPedidos"
+APIAtencion ..> APIClientes : "Consultar\nInfo Cliente"
+APIAtencion ..> APIInventario : "Verificar\nDisponibilidad"
+APIAtencion ..> APILogistica : "Consultar\nTracking"
+APIAtencion ..> APIFacturacion : "Consultar\nFacturas"
+APIAtencion ..> APINotificaciones : "Enviar\nNotificaciones"
+
+' ============ CONEXIONES - MÓDULO DE PEDIDOS ============
+APIPedidos --> CapturaPedidos
+CapturaPedidos --> MotorValidacion
+MotorValidacion ..> APIClientes : "Validar Crédito"
+MotorValidacion ..> APIInventario : "Validar Stock"
+MotorValidacion --> EstadoPedidos
+EstadoPedidos --> GestionCambios
+EstadoPedidos ..> APIBodega : "Notificar\nPreparación"
+EstadoPedidos ..> APILogistica : "Asignar\nDespacho"
+EstadoPedidos ..> APIFacturacion : "Generar\nFactura"
+EstadoPedidos ..> APINotificaciones : "Notificar\nEstados"
+
+' ============ CONEXIONES - MÓDULO DE CLIENTES ============
+APIClientes --> PerfilCliente
+APIClientes --> HistorialPedidos
+APIClientes --> MotorCredito
+APIClientes --> Segmentacion
+PerfilCliente --> PostgreSQL : JDBC
+MotorCredito --> PostgreSQL : JDBC
+
+' ============ CONEXIONES - MÓDULO DE INVENTARIO ============
+APIInventario --> ConsultaInventario
+APIInventario --> ReservaProductos
+ReservaProductos --> ControlStock
+ControlStock --> AlertasInventario
+AlertasInventario ..> APINotificaciones : "Alertas de Stock"
+ConsultaInventario --> Redis : Cache
+ControlStock --> PostgreSQL : JDBC
+
+' ============ CONEXIONES - MÓDULO DE BODEGA ============
+APIBodega --> GestionPicking
+GestionPicking --> PreparacionPedidos
+PreparacionPedidos --> ControlCalidad
+ControlCalidad --> ConfirmacionDespacho
+ConfirmacionDespacho ..> APILogistica : "Listo para\nDespacho"
+GestionPicking --> PostgreSQL : JDBC
+
+' ============ CONEXIONES - MÓDULO DE LOGÍSTICA ============
+APILogistica --> PlanificadorRutas
+PlanificadorRutas --> TrackingTiempoReal
+TrackingTiempoReal --> GestionTransportistas
+GestionTransportistas --> GestionIncidencias
+GestionIncidencias ..> APIAtencion : "Reportar\nIncidencias"
+GestionIncidencias ..> APINotificaciones : "Notificar\nProblemas"
+TrackingTiempoReal ..> ServiciosCourier : "API Tracking"
+TrackingTiempoReal --> MongoDB : "Logs GPS"
+PlanificadorRutas --> PostgreSQL : JDBC
+
+' ============ CONEXIONES - MÓDULO DE FACTURACIÓN ============
+APIFacturacion --> GeneradorFacturas
+GeneradorFacturas --> IntegracionDIAN
+IntegracionDIAN --> ReportesContables
+GeneradorFacturas --> NotasContables
+NotasContables ..> APIClientes : "Actualizar\nCrédito"
+IntegracionDIAN ..> ServicioDIAN : "SOAP/REST"
+GeneradorFacturas ..> PasarelasPago : "Procesar\nPagos"
+GeneradorFacturas --> PostgreSQL : JDBC
+
+' ============ CONEXIONES - MÓDULO DE NOTIFICACIONES ============
+APINotificaciones --> MotorNotificaciones
+MotorNotificaciones --> EmailTransaccional
+MotorNotificaciones --> SMS
+MotorNotificaciones --> WhatsAppBusiness
+MotorNotificaciones --> PushNotifications
+MotorNotificaciones --> GestionPreferencias
+EmailTransaccional ..> ProveedoresMensajeria : "SendGrid API"
+SMS ..> ProveedoresMensajeria : "Twilio API"
+WhatsAppBusiness ..> ProveedoresMensajeria : "WhatsApp API"
+MotorNotificaciones --> MongoDB : "Logs Notif"
+
+' ============ CONEXIONES - MÓDULO DE REPORTES ============
+APIAnalytics --> DashboardOperativo
+APIAnalytics --> ReportesVentas
+APIAnalytics --> KPIsOperativos
+APIAnalytics --> AnalisisIncidencias
+DashboardOperativo --> MongoDB : "Query Logs"
+ReportesVentas --> PostgreSQL : "Query Ventas"
+KPIsOperativos --> MongoDB : "Query Eventos"
+AnalisisIncidencias --> MongoDB : "Query Incidencias"
+
+' ============ CONEXIONES ADICIONALES A MONGODB ============
+HistorialInteracciones --> MongoDB : "Logs Interacción"
+SeguimientoCasos --> MongoDB : "Auditoría"
+
+' ============ LEYENDA ============
+legend right
+    |= Color |= Significado |
+    | <back:#E8F5E9></back> | Módulos del Sistema |
+    | <back:#BBDEFB></back> | Bases de Datos |
+    | <back:#FFE082></back> | Servicios Externos |
+    
+    **Tipos de Conexiones:**
+    --> : Flujo de Datos Directo
+    ..> : Dependencia/Llamada API
+    
+    **Módulo Central:** Atención al Cliente
+    coordina todos los servicios
+endlegend
+
+note as N1
+    **Flujo Principal de Atención al Cliente:**
+    1. Cliente contacta por cualquier canal
+    2. API Gateway autentica y enruta
+    3. Atención al Cliente coordina con todos los módulos
+    4. Notificaciones mantiene informado al cliente
+    5. Analytics captura métricas del proceso completo
+end note
+
+@enduml
