@@ -1,0 +1,81 @@
+# DeliMasa Backend API - Ejemplos de Prueba
+# Usa este archivo con REST Client (VS Code) o Postman
+
+### Health Check
+GET http://localhost:3000/api/health
+
+### Obtener todos los clientes
+GET http://localhost:3000/api/clients
+
+### Obtener cliente específico
+GET http://localhost:3000/api/clients/clienteA
+
+### Obtener productos
+GET http://localhost:3000/api/products
+
+### Buscar productos
+GET http://localhost:3000/api/products/search?q=arroz
+
+### Análisis con IA (Pedido que debe APROBAR)
+POST http://localhost:3000/api/orders/analyze-with-ai
+Content-Type: application/json
+
+{
+  "clienteId": "clienteA",
+  "items": [
+    {
+      "id": "1",
+      "producto": "Arroz Premium 50kg",
+      "cantidad": 10,
+      "precioUnitario": 125000,
+      "descuento": 15,
+      "subtotal": 1062500
+    },
+    {
+      "id": "2",
+      "producto": "Aceite de Girasol 20L",
+      "cantidad": 5,
+      "precioUnitario": 85000,
+      "descuento": 10,
+      "subtotal": 382500
+    }
+  ],
+  "condiciones": "Entrega en 3 días, pago a 30 días"
+}
+
+### Análisis con IA (Pedido que debe RECHAZAR - descuentos excesivos)
+POST http://localhost:3000/api/orders/analyze-with-ai
+Content-Type: application/json
+
+{
+  "clienteId": "clienteC",
+  "items": [
+    {
+      "id": "1",
+      "producto": "Arroz Premium 50kg",
+      "cantidad": 100,
+      "precioUnitario": 125000,
+      "descuento": 25,
+      "subtotal": 9375000
+    }
+  ],
+  "condiciones": "Descuento especial por volumen"
+}
+
+### Análisis solo con reglas (sin IA)
+POST http://localhost:3000/api/orders/analyze
+Content-Type: application/json
+
+{
+  "clienteId": "clienteB",
+  "items": [
+    {
+      "id": "1",
+      "producto": "Café Molido 10kg",
+      "cantidad": 3,
+      "precioUnitario": 180000,
+      "descuento": 12,
+      "subtotal": 475200
+    }
+  ]
+}

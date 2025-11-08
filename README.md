@@ -1,73 +1,290 @@
-# Welcome to your Lovable project
+# DeliMasa - Motor de Revisión Comercial
 
-## Project info
+Sistema completo de análisis automático de pedidos institucionales con integración de IA para DeliMasa.
 
-**URL**: https://lovable.dev/projects/6cd514e5-d18f-486f-b745-9f7c2842fcf6
+## 🏗️ Arquitectura del Proyecto
 
-## How can I edit this code?
+```
+delimasa-order-pilot/
+├── frontend/          # React + TypeScript + Vite
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.ts
+├── backend/           # Node.js + Express + OpenAI
+│   ├── src/
+│   ├── package.json
+│   └── README.md
+└── README.md         # Este archivo
+```
 
-There are several ways of editing your application.
+## 🚀 Características Principales
 
-**Use Lovable**
+### Frontend (React)
+- ✅ **Interfaz Moderna**: React 18 + TypeScript + Vite
+- ✅ **UI Profesional**: shadcn/ui + Tailwind CSS
+- ✅ **Gestión de Estado**: TanStack Query
+- ✅ **Formularios**: React Hook Form + Zod
+- ✅ **Routing**: React Router DOM
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6cd514e5-d18f-486f-b745-9f7c2842fcf6) and start prompting.
+### Backend (Node.js)
+- ✅ **API RESTful**: Express + TypeScript
+- ✅ **Análisis Híbrido**: Reglas de negocio + ChatGPT
+- ✅ **Seguridad**: Helmet + CORS + Rate Limiting
+- ✅ **Datos Mock**: Sin base de datos, datos hardcodeados
+- ✅ **Documentación**: README completo + ejemplos
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Instalación y Configuración
 
-**Use your preferred IDE**
+### Prerrequisitos
+- Node.js >= 18.0.0
+- npm >= 8.0.0
+- Clave API de OpenAI
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 1. Configurar Backend
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+cd backend
 
-Follow these steps:
+# Instalar dependencias
+npm install
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env y agregar tu OPENAI_API_KEY
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Ejecutar en desarrollo
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 2. Configurar Frontend
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+cd frontend
 
-**Use GitHub Codespaces**
+# Instalar dependencias (si no están instaladas)
+npm install
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Ejecutar en desarrollo
+npm run dev
+```
 
-## What technologies are used for this project?
+### 3. Verificar Configuración
 
-This project is built with:
+- **Backend**: http://localhost:3000/api/health
+- **Frontend**: http://localhost:8080
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🔧 Configuración de Variables de Entorno
 
-## How can I deploy this project?
+### Backend (.env)
+```bash
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
 
-Simply open [Lovable](https://lovable.dev/projects/6cd514e5-d18f-486f-b745-9f7c2842fcf6) and click on Share -> Publish.
+# Server Configuration
+PORT=3000
+NODE_ENV=development
 
-## Can I connect a custom domain to my Lovable project?
+# CORS Configuration
+FRONTEND_URL=http://localhost:8080
+```
 
-Yes, you can!
+### Frontend (.env)
+```bash
+VITE_API_URL=http://localhost:3000/api
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🎯 Funcionalidades
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### 1. Análisis de Pedidos con IA
+- **Endpoint**: `POST /api/orders/analyze-with-ai`
+- **Características**:
+  - Análisis cuantitativo (reglas de negocio)
+  - Análisis cualitativo (ChatGPT)
+  - Decisión combinada inteligente
+  - Sugerencias de negociación
+
+### 2. Gestión de Clientes
+- **Endpoints**: `GET /api/clients`, `GET /api/clients/:id`
+- **Datos Mock**:
+  - Supermercados DelSur (Premium)
+  - Restaurantes Gourmet SAS (Regular)
+  - Distribuidora NorteCol (Nuevo)
+
+### 3. Catálogo de Productos
+- **Endpoints**: `GET /api/products`, `GET /api/products/search`
+- **Productos**: Arroz, aceite, azúcar, harina, etc.
+
+## 🤖 Integración con ChatGPT
+
+### Prompt Especializado
+El sistema utiliza un prompt diseñado específicamente para análisis comercial:
+
+```
+Eres un experto analista comercial especializado en distribución 
+de alimentos institucionales en Colombia...
+
+DATOS DEL PEDIDO:
+- Cliente: Supermercados DelSur (Premium)
+- Valor del pedido: $1,445,000 COP
+- Margen promedio: 18.5%
+- Descuento promedio: 12.5%
+
+Proporciona análisis contextual, evaluación de riesgos, 
+sugerencias de negociación y recomendación final...
+```
+
+### Análisis Híbrido
+1. **Reglas de Negocio**: Validaciones automáticas
+2. **IA Contextual**: Análisis cualitativo con ChatGPT
+3. **Decisión Combinada**: Matriz de decisión inteligente
+
+## 📊 Ejemplos de Uso
+
+### Pedido que se APRUEBA
+```json
+{
+  "clienteId": "clienteA",
+  "items": [
+    {
+      "producto": "Arroz Premium 50kg",
+      "cantidad": 10,
+      "precioUnitario": 125000,
+      "descuento": 15
+    }
+  ]
+}
+```
+
+**Resultado**: ✅ APROBAR (Confianza: 92%)
+
+### Pedido que se RECHAZA
+```json
+{
+  "clienteId": "clienteC",
+  "items": [
+    {
+      "producto": "Arroz Premium 50kg",
+      "cantidad": 100,
+      "precioUnitario": 125000,
+      "descuento": 25
+    }
+  ]
+}
+```
+
+**Resultado**: ❌ RECHAZAR (Descuentos excesivos)
+
+## 🔒 Seguridad
+
+- **Rate Limiting**: 100 requests/15min general, 10/min para IA
+- **CORS**: Configurado para frontend específico
+- **Helmet**: Headers de seguridad
+- **Validación**: Inputs estrictamente validados
+- **Error Handling**: Sin exposición de información sensible
+
+## 🧪 Testing
+
+### Probar Backend
+```bash
+cd backend
+
+# Usar archivo de pruebas HTTP
+# Abrir test-api.http en VS Code con REST Client
+```
+
+### Probar Frontend
+```bash
+cd frontend
+npm run dev
+# Navegar a http://localhost:8080
+```
+
+## 📈 Monitoreo y Logs
+
+El sistema incluye logging detallado:
+- Requests entrantes
+- Errores de IA
+- Rate limiting
+- Performance metrics
+
+## 🚀 Deployment
+
+### Backend
+```bash
+cd backend
+npm run build
+npm start
+```
+
+### Frontend
+```bash
+cd frontend
+npm run build
+# Servir carpeta dist/
+```
+
+## 🛠️ Scripts Disponibles
+
+### Backend
+- `npm run dev` - Desarrollo con hot reload
+- `npm run build` - Compilar TypeScript
+- `npm start` - Ejecutar versión compilada
+- `npm run lint` - Verificar código
+
+### Frontend
+- `npm run dev` - Servidor de desarrollo
+- `npm run build` - Build para producción
+- `npm run preview` - Preview del build
+
+## 🐛 Troubleshooting
+
+### Error: OPENAI_API_KEY no configurada
+```bash
+# Backend/.env
+OPENAI_API_KEY=sk-your-actual-api-key-here
+```
+
+### Error: CORS
+```bash
+# Verificar que el frontend esté en puerto 8080
+# O actualizar FRONTEND_URL en backend/.env
+```
+
+### Error: Puertos en uso
+```bash
+# Cambiar puertos en archivos de configuración
+# Backend: PORT=3001 en .env
+# Frontend: puerto en vite.config.ts
+```
+
+## 📋 Próximos Pasos
+
+### Mejoras Sugeridas
+1. **Base de Datos**: Migrar de datos mock a PostgreSQL
+2. **Autenticación**: JWT + roles de usuario
+3. **Dashboard**: Métricas y reportes
+4. **Notificaciones**: Tiempo real con WebSockets
+5. **Testing**: Unit tests + integration tests
+
+### Escalabilidad
+1. **Docker**: Containerización completa
+2. **CI/CD**: Pipeline de deployment
+3. **Monitoring**: APM + logging centralizado
+4. **Cache**: Redis para optimización
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crear branch para feature
+3. Commit cambios
+4. Push al branch
+5. Abrir Pull Request
+
+## 📄 Licencia
+
+MIT License - ver archivo LICENSE para detalles.
+
+---
+
+**DeliMasa v1.0.0** - Motor de Revisión Comercial con IA  
+Desarrollado con ❤️ para optimizar procesos comerciales
